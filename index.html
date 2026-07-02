@@ -5,8 +5,6 @@
     
     <script>
         if (window.location.hostname.includes("github.io")) {
-            // ⚠️ 部署完成后，请把这里的网址换成 Vercel 分配给你的真实域名！
-            // 注意保留 https:// 前缀
             window.location.replace("https://app.yiruifu.cn");
         }
     </script>
@@ -249,9 +247,6 @@
 </div>
 
 <script>
-    // =====================================================================
-    // 🛡️ 纯净前端：所有的 API_URL、KEY 和 CODE 都不见了，完全安全！
-    // =====================================================================
     
     let globalToken = null;
 
@@ -259,6 +254,21 @@
         if (!spaceName) return 0;
         const match = String(spaceName).match(/-?\d+/);
         return match ? parseInt(match[0], 10) : 0;
+    }
+
+    // 🌟 新增：判断是否需要换乘的逻辑核心
+    function checkNeedTransfer(userFloor, spaceFloor) {
+        // 1. 如果起点或终点刚好在换乘层（17层），则绝不需要换乘
+        if (userFloor === 17 || spaceFloor === 17) return false;
+        
+        // 2. 如果同在低区（小于17），不需要换乘
+        if (userFloor < 17 && spaceFloor < 17) return false;
+        
+        // 3. 如果同在高区（大于17），不需要换乘
+        if (userFloor > 17 && spaceFloor > 17) return false;
+        
+        // 4. 跨区，必然需要换乘
+        return true;
     }
 
     async function startSearch() {
@@ -306,10 +316,14 @@
 
                     if (pit.sex === userSex && (pit.freeNumber || 0) > 0) {
                         const distance = Math.abs(spaceFloor - userFloor);
+                        // 🌟 新增：计算该楼层是否需要换乘
+                        const needTransfer = checkNeedTransfer(userFloor, spaceFloor);
+                        
                         matchedSpaces.push({
                             spaceName: space.spaceName || "未知空间",
                             floor: spaceFloor,
                             distance: distance,
+                            needTransfer: needTransfer, // 保存换乘状态
                             freeNum: pit.freeNumber,
                             totalNum: pit.allNumber
                         });
@@ -317,10 +331,17 @@
                 }
             }
 
+            // 🌟 核心算法修改：多维度排序
             matchedSpaces.sort((a, b) => {
+                // 第一优先级：是否需要换乘（不需要换乘的 a.needTransfer=false 排在前面）
+                if (a.needTransfer !== b.needTransfer) {
+                    return a.needTransfer ? 1 : -1;
+                }
+                // 第二优先级：绝对楼层距离（距离近的排在前面）
                 if (a.distance !== b.distance) {
                     return a.distance - b.distance;
                 }
+                // 第三优先级：剩余坑位数量（剩余坑位多的排在前面）
                 return b.freeNum - a.freeNum;
             });
 
@@ -394,15 +415,23 @@
             return;
         }
 
+        // 取前三个结果展示
         const topSpaces = spaces.slice(0, 3);
         topSpaces.forEach((space, index) => {
-            const distDesc = space.distance === 0 ? "就在本层" : `相差 ${space.distance} 层`;
+            // 🌟 新增：根据是否需要换乘，渲染不同的图标和文案
+            const distIcon = space.needTransfer ? "🔄" : "🚶";
+            let distDesc = space.distance === 0 ? "就在本层" : `相差 ${space.distance} 层`;
+            
+            if (space.needTransfer) {
+                // 如果需要换乘，文案变红并提示换乘
+                distDesc = `<span style="color: #e53935;">需至17层换乘 (共差${space.distance}层)</span>`;
+            }
 
             const itemHTML = `
                 <div class="result-item">
                     <div class="result-info">
                         <h3>${space.spaceName}</h3>
-                        <p>🚶 ${distDesc}</p>
+                        <p>${distIcon} ${distDesc}</p>
                     </div>
 
                     <div class="pit-count-wrapper">
