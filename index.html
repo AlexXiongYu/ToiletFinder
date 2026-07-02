@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>中金大厦快捷厕位推荐</title>
+    <style>
+        /* ================= 基础样式与响应式布局 ================= */
+        :root {
+            --primary-color: #4CAF50;
+            --primary-hover: #45a049;
+            --bg-color: #f4f7f9;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #888888;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            padding: 20px 15px;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            background-color: var(--card-bg);
+            width: 100%;
+            max-width: 480px;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            padding: 30px 20px;
+            height: fit-content;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* ================= 表单样式 ================= */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .input-control {
+            width: 100%;
+            padding: 12px 15px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+
+        .input-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .gender-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .gender-radio {
+            display: none;
+        }
+
+        .gender-label {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .gender-radio:checked + .gender-label {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .submit-btn {
+            width: 100%;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+
+        .submit-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        /* ================= 结果展示区 ================= */
+        #result-container {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .result-title {
+            font-size: 16px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .result-item {
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-info h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+            color: #222;
+        }
+
+        .result-info p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* 优化后的厕位统计视图 */
+        .pit-count-wrapper {
+            text-align: right;
+        }
+
+        .pit-free {
+            color: #11a63b; /* 醒目的深绿色 */
+            font-size: 26px; /* 放大数字 */
+            font-weight: bold;
+            line-height: 1;
+            display: flex;
+            align-items: baseline;
+            justify-content: flex-end;
+        }
+
+        .pit-free-label {
+            font-size: 13px;
+            font-weight: normal;
+            color: #4CAF50;
+            margin-right: 6px;
+        }
+
+        .pit-total {
+            color: #999999; /* 灰色弱化总数 */
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        /* 加载与错误提示 */
+        #loading-text {
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 14px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .error-text {
+            color: #e53935;
+            text-align: center;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header">
+        <h1>🏢 中金大厦快捷厕位推荐</h1>
+        <p></p>
+    </div>
+
+    <div class="form-group">
+        <label for="floorInput">📍 您当前所在的楼层 (数字)</label>
+        <input type="number" id="floorInput" class="input-control" placeholder="例如：7" required>
+    </div>
+
+    <div class="form-group">
+        <label>🚻 您要查找的性别</label>
+        <div class="gender-group">
+            <input type="radio" name="gender" id="genderMale" value="1" class="gender-radio" checked>
+            <label for="genderMale" class="gender-label">👦 男厕</label>
+
+            <input type="radio" name="gender" id="genderFemale" value="2" class="gender-radio">
+            <label for="genderFemale" class="gender-label">👧 女厕</label>
+        </div>
+    </div>
+
+    <button id="searchBtn" class="submit-btn" onclick="startSearch()">一键寻找最近空位</button>
+
+    <div id="loading-text">🔄 正在连接系统拉取实时数据...</div>
+    <div id="error-msg" class="error-text"></div>
+
+    <div id="result-container">
+        <h2 class="result-title">✨ 为您推荐以下最近空位：</h2>
+        <div id="result-list">
+            </div>
+    </div>
+</div>
+
+<script>
+    // =====================================================================
+    // ⚠️ 配置区域：请确保填入你真实的 APP_KEY 和 APP_CODE
+    // =====================================================================
+    const API_BASE_URL = "https://sunpncity.cn"; // 已修复双斜杠问题
+    const APP_KEY = "3FJOTTuL";
+    const APP_CODE = "D435tX3pul";
+
+    let globalToken = null;
+
+    // 工具函数：提取楼层数字
+    function extractFloor(spaceName) {
+        if (!spaceName) return 0;
+        const match = String(spaceName).match(/-?\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+    }
+
+    // 核心流程控制
+    async function startSearch() {
+        const floorInput = document.getElementById('floorInput').value;
+        const sexInput = document.querySelector('input[name="gender"]:checked').value;
+
+        if (!floorInput || isNaN(floorInput)) {
+            showError("❌ 请输入有效的楼层数字！");
+            return;
+        }
+
+        const userFloor = parseInt(floorInput, 10);
+        const userSex = parseInt(sexInput, 10);
+
+        // UI 状态重置
+        const btn = document.getElementById('searchBtn');
+        const loading = document.getElementById('loading-text');
+        const resultContainer = document.getElementById('result-container');
+
+        btn.disabled = true;
+        loading.style.display = 'block';
+        showError("");
+        resultContainer.style.display = 'none';
+
+        try {
+            // 1. 登录鉴权
+            if (!globalToken) {
+                await login();
+            }
+
+            // 2. 拉取数据
+            const allSpaces = await fetchSquatData();
+
+            // 3. 数据清洗、距离计算与排序
+            let matchedSpaces = [];
+
+            for (let space of allSpaces) {
+                if (!space || typeof space !== 'object') continue;
+
+                let pitList = space.pitNumberList;
+
+                if (typeof pitList === 'string') {
+                    try { pitList = JSON.parse(pitList); } catch (e) { continue; }
+                }
+
+                if (!Array.isArray(pitList)) continue;
+
+                const spaceFloor = extractFloor(space.spaceName);
+
+                for (let pit of pitList) {
+                    if (!pit || typeof pit !== 'object') continue;
+
+                    if (pit.sex === userSex && (pit.freeNumber || 0) > 0) {
+                        const distance = Math.abs(spaceFloor - userFloor);
+                        matchedSpaces.push({
+                            spaceName: space.spaceName || "未知空间",
+                            floor: spaceFloor,
+                            distance: distance,
+                            freeNum: pit.freeNumber,
+                            totalNum: pit.allNumber // 修复：使用真实的 allNumber 总字段
+                        });
+                    }
+                }
+            }
+
+            // 排序：距离越小越前，距离相同则空位越多越前
+            matchedSpaces.sort((a, b) => {
+                if (a.distance !== b.distance) {
+                    return a.distance - b.distance;
+                }
+                return b.freeNum - a.freeNum;
+            });
+
+            // 4. 渲染结果
+            renderResults(matchedSpaces);
+
+        } catch (error) {
+            showError("❌ " + error.message);
+        } finally {
+            // 恢复 UI
+            btn.disabled = false;
+            loading.style.display = 'none';
+        }
+    }
+
+    // 接口 1：登录鉴权
+    async function login() {
+        const timestamp = String(Date.now());
+        const payload = {
+            APP_KEY: APP_KEY,
+            APP_CODE: APP_CODE,
+            Timestamp: timestamp
+        };
+
+        const response = await fetch(`${API_BASE_URL}/api/okmes/OpenApi/Login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error("网络请求失败，请检查网络或服务状态");
+        const resData = await response.json();
+
+        if (resData.code === 200 && resData.data && resData.data.token) {
+            globalToken = resData.data.token;
+        } else {
+            throw new Error(resData.message || "鉴权失败，请检查密钥");
+        }
+    }
+
+    // 接口 2：拉取数据
+    async function fetchSquatData() {
+        const payload = {
+            APP_KEY: APP_KEY,
+            Token: globalToken,
+            PageNo: 1,
+            PageSize: 100
+        };
+
+        const response = await fetch(`${API_BASE_URL}/api/okmes/OpenApi/PageRealTimePitNumber`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error("数据拉取网络错误");
+        const resData = await response.json();
+
+        if (resData.code === 200 && resData.data) {
+            let dataLayer = resData.data;
+
+            // 防御性解析逻辑
+            if (typeof dataLayer === 'string') {
+                try { dataLayer = JSON.parse(dataLayer); } catch(e) {}
+            }
+            if (Array.isArray(dataLayer)) return dataLayer;
+            if (typeof dataLayer === 'object') {
+                for (let key of ['list', 'records', 'data', 'rows']) {
+                    if (Array.isArray(dataLayer[key])) return dataLayer[key];
+                }
+            }
+        }
+        throw new Error(resData.message || "未能解析到公厕数据");
+    }
+
+    // 渲染 DOM
+    function renderResults(spaces) {
+        const listDiv = document.getElementById('result-list');
+        listDiv.innerHTML = "";
+        document.getElementById('result-container').style.display = 'block';
+
+        if (spaces.length === 0) {
+            listDiv.innerHTML = `<div class="result-item" style="justify-content: center; color: #888;">
+                抱歉，当前暂无匹配的空余厕位。
+            </div>`;
+            return;
+        }
+
+        // 取前三个结果展示
+        const topSpaces = spaces.slice(0, 3);
+        topSpaces.forEach((space, index) => {
+            const distDesc = space.distance === 0 ? "就在本层" : `相差 ${space.distance} 层`;
+
+            // 构造全新优化的 HTML
+            const itemHTML = `
+                <div class="result-item">
+                    <div class="result-info">
+                        <h3>${space.spaceName}</h3>
+                        <p>🚶 ${distDesc}</p>
+                    </div>
+
+                    <div class="pit-count-wrapper">
+                        <div class="pit-free">
+                            <span class="pit-free-label">剩</span>${space.freeNum}
+                        </div>
+                        <div class="pit-total">
+                            总共 ${space.totalNum} 个厕位
+                        </div>
+                    </div>
+                </div>
+            `;
+            listDiv.innerHTML += itemHTML;
+        });
+    }
+
+    function showError(msg) {
+        document.getElementById('error-msg').innerText = msg;
+    }
+</script>
+
+</body>
+</html>
