@@ -2,6 +2,14 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    
+    <script>
+        if (window.location.hostname.includes("github.io")) {
+            // ⚠️ 部署完成后，请把这里的网址换成 Vercel 分配给你的真实域名！
+            // 注意保留 https:// 前缀
+            window.location.replace("https://替换为你真实的vercel域名.vercel.app");
+        }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>中金大厦快捷厕位推荐</title>
     <style>
@@ -57,7 +65,6 @@
             color: var(--text-muted);
         }
 
-        /* ================= 表单样式 ================= */
         .form-group {
             margin-bottom: 20px;
         }
@@ -129,7 +136,6 @@
             cursor: not-allowed;
         }
 
-        /* ================= 结果展示区 ================= */
         #result-container {
             margin-top: 30px;
             display: none;
@@ -164,14 +170,13 @@
             color: var(--text-muted);
         }
 
-        /* 优化后的厕位统计视图 */
         .pit-count-wrapper {
             text-align: right;
         }
 
         .pit-free {
-            color: #11a63b; /* 醒目的深绿色 */
-            font-size: 26px; /* 放大数字 */
+            color: #11a63b;
+            font-size: 26px;
             font-weight: bold;
             line-height: 1;
             display: flex;
@@ -187,12 +192,11 @@
         }
 
         .pit-total {
-            color: #999999; /* 灰色弱化总数 */
+            color: #999999;
             font-size: 12px;
             margin-top: 6px;
         }
 
-        /* 加载与错误提示 */
         #loading-text {
             text-align: center;
             color: var(--primary-color);
@@ -240,29 +244,23 @@
 
     <div id="result-container">
         <h2 class="result-title">✨ 为您推荐以下最近空位：</h2>
-        <div id="result-list">
-            </div>
+        <div id="result-list"></div>
     </div>
 </div>
 
 <script>
     // =====================================================================
-    // ⚠️ 配置区域：请确保填入你真实的 APP_KEY 和 APP_CODE
+    // 🛡️ 纯净前端：所有的 API_URL、KEY 和 CODE 都不见了，完全安全！
     // =====================================================================
-    const API_BASE_URL = "https://sunpncity.cn"; // 已修复双斜杠问题
-    const APP_KEY = "3FJOTTuL";
-    const APP_CODE = "D435tX3pul";
-
+    
     let globalToken = null;
 
-    // 工具函数：提取楼层数字
     function extractFloor(spaceName) {
         if (!spaceName) return 0;
         const match = String(spaceName).match(/-?\d+/);
         return match ? parseInt(match[0], 10) : 0;
     }
 
-    // 核心流程控制
     async function startSearch() {
         const floorInput = document.getElementById('floorInput').value;
         const sexInput = document.querySelector('input[name="gender"]:checked').value;
@@ -275,7 +273,6 @@
         const userFloor = parseInt(floorInput, 10);
         const userSex = parseInt(sexInput, 10);
 
-        // UI 状态重置
         const btn = document.getElementById('searchBtn');
         const loading = document.getElementById('loading-text');
         const resultContainer = document.getElementById('result-container');
@@ -286,28 +283,22 @@
         resultContainer.style.display = 'none';
 
         try {
-            // 1. 登录鉴权
             if (!globalToken) {
                 await login();
             }
 
-            // 2. 拉取数据
             const allSpaces = await fetchSquatData();
-
-            // 3. 数据清洗、距离计算与排序
             let matchedSpaces = [];
 
             for (let space of allSpaces) {
                 if (!space || typeof space !== 'object') continue;
 
                 let pitList = space.pitNumberList;
-
                 if (typeof pitList === 'string') {
                     try { pitList = JSON.parse(pitList); } catch (e) { continue; }
                 }
 
                 if (!Array.isArray(pitList)) continue;
-
                 const spaceFloor = extractFloor(space.spaceName);
 
                 for (let pit of pitList) {
@@ -320,13 +311,12 @@
                             floor: spaceFloor,
                             distance: distance,
                             freeNum: pit.freeNumber,
-                            totalNum: pit.allNumber // 修复：使用真实的 allNumber 总字段
+                            totalNum: pit.allNumber
                         });
                     }
                 }
             }
 
-            // 排序：距离越小越前，距离相同则空位越多越前
             matchedSpaces.sort((a, b) => {
                 if (a.distance !== b.distance) {
                     return a.distance - b.distance;
@@ -334,65 +324,51 @@
                 return b.freeNum - a.freeNum;
             });
 
-            // 4. 渲染结果
             renderResults(matchedSpaces);
 
         } catch (error) {
             showError("❌ " + error.message);
         } finally {
-            // 恢复 UI
             btn.disabled = false;
             loading.style.display = 'none';
         }
     }
 
-    // 接口 1：登录鉴权
+    // 接口 1：登录鉴权（调用自己的 api/proxy 云函数）
     async function login() {
-        const timestamp = String(Date.now());
-        const payload = {
-            APP_KEY: APP_KEY,
-            APP_CODE: APP_CODE,
-            Timestamp: timestamp
-        };
-
-        const response = await fetch(`${API_BASE_URL}/api/okmes/OpenApi/Login`, {
+        const response = await fetch(`/api/proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ action: "login" })
         });
 
-        if (!response.ok) throw new Error("网络请求失败，请检查网络或服务状态");
+        if (!response.ok) throw new Error("代理网络请求失败");
         const resData = await response.json();
 
         if (resData.code === 200 && resData.data && resData.data.token) {
             globalToken = resData.data.token;
         } else {
-            throw new Error(resData.message || "鉴权失败，请检查密钥");
+            throw new Error(resData.message || "系统鉴权失败");
         }
     }
 
-    // 接口 2：拉取数据
+    // 接口 2：拉取数据（调用自己的 api/proxy 云函数）
     async function fetchSquatData() {
-        const payload = {
-            APP_KEY: APP_KEY,
-            Token: globalToken,
-            PageNo: 1,
-            PageSize: 100
-        };
-
-        const response = await fetch(`${API_BASE_URL}/api/okmes/OpenApi/PageRealTimePitNumber`, {
+        const response = await fetch(`/api/proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ 
+                action: "fetch_data",
+                payload: { token: globalToken }
+            })
         });
 
-        if (!response.ok) throw new Error("数据拉取网络错误");
+        if (!response.ok) throw new Error("获取数据代理请求错误");
         const resData = await response.json();
 
         if (resData.code === 200 && resData.data) {
             let dataLayer = resData.data;
 
-            // 防御性解析逻辑
             if (typeof dataLayer === 'string') {
                 try { dataLayer = JSON.parse(dataLayer); } catch(e) {}
             }
@@ -406,7 +382,6 @@
         throw new Error(resData.message || "未能解析到公厕数据");
     }
 
-    // 渲染 DOM
     function renderResults(spaces) {
         const listDiv = document.getElementById('result-list');
         listDiv.innerHTML = "";
@@ -419,12 +394,10 @@
             return;
         }
 
-        // 取前三个结果展示
         const topSpaces = spaces.slice(0, 3);
         topSpaces.forEach((space, index) => {
             const distDesc = space.distance === 0 ? "就在本层" : `相差 ${space.distance} 层`;
 
-            // 构造全新优化的 HTML
             const itemHTML = `
                 <div class="result-item">
                     <div class="result-info">
@@ -450,6 +423,5 @@
         document.getElementById('error-msg').innerText = msg;
     }
 </script>
-
 </body>
 </html>
